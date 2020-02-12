@@ -1,23 +1,51 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
-import Home from '../views/Home.vue'
+import store from "../store"
 
 Vue.use(VueRouter)
 
+function loadViews(views) {
+  return () => import(`@/views/${views}.vue`);
+}
+
+function loadLayout(layout) {
+  return () => import(`@/layouts/${layout}.vue`);
+}
+
 const routes = [
   {
-    path: '/',
-    name: 'home',
-    component: Home
+    path: '/login',
+    component: loadLayout("AuthLayout"),
+    children: [
+      {
+        path: '',
+        name: 'login',
+        component: loadViews('Login')
+      }
+    ]
   },
   {
-    path: '/about',
-    name: 'about',
-    // route level code-splitting
-    // this generates a separate chunk (about.[hash].js) for this route
-    // which is lazy-loaded when the route is visited.
-    component: () => import(/* webpackChunkName: "about" */ '../views/About.vue')
-  }
+    path: '/',
+    component: loadLayout("HomeLayout"),
+    redirect: "/dashboard",
+    children: [
+      {
+        path: 'dashboard',
+        name: 'dashboard',
+        component: loadViews('Dashboard')
+      },
+      {
+        path: 'report',
+        name: 'report',
+        component: loadViews('Report')
+      },
+      {
+        path: 'fuel-price',
+        name: 'fuelPrice',
+        component: loadViews('FuelPrice')
+      }
+    ]
+  },
 ]
 
 const router = new VueRouter({
@@ -25,5 +53,20 @@ const router = new VueRouter({
   base: process.env.BASE_URL,
   routes
 })
+
+let withoutAuthRoutes=[
+  "/login",
+]
+
+// router.beforeEach((to,from,next)=>{
+//   if(withoutAuthRoutes.indexOf(to.path) == -1 && !store.getters["loginInfo/isLogged"]){
+//     next("/login")
+//   }else if(withoutAuthRoutes.indexOf(to.path) >= 0 && store.getters["loginInfo/isLogged"]){
+//     next("/")
+//   }
+//   else{
+//     next()
+//   }
+// });
 
 export default router
