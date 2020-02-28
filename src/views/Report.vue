@@ -900,8 +900,13 @@ export default {
       // console.log("YDM",ydm,sess.getServerTime(),from,to)
       console.log(unit);
       let uId = unit.getId();
-      let template = this.fuelRes.getReport(1);
-      console.log("FUEL-RES", this.fuelRes);
+      let template;// = this.fuelRes.getReport(1);
+      for(let rep in this.fuelRes.getReports()){
+        if(this.fuelRes.getReports()[rep].n == "Fuel Report") {
+          template = this.fuelRes.getReports()[rep]
+          break
+        }
+      }
       console.log(
         moment(from * 1000).format("YYYY-MM-DD HH:mm:ss"),
         moment(to * 1000).format("YYYY-MM-DD HH:mm:ss")
@@ -912,6 +917,7 @@ export default {
         to: to,
         flags: wialon.item.MReport.intervalFlag.absolute
       };
+      console.log("FUEL-RES", uId, this.fuelRes,template,this.fuelRes.getReports());
       this.fuelRes.execReport(
         template,
         uId,

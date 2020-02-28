@@ -1107,7 +1107,6 @@ export default {
                     todayMileage: "-",
                     lastActive: "-",
                     idlling: "-", //TODO: need to find,
-                    locationAddress: "-",
                     coordinates: {
                       x: x || "-",
                       y: y || "-"
@@ -1148,10 +1147,11 @@ export default {
                     obj.trailerId = allTrailers[unit.getId()][0].name;
                   }
                   let sensors = unit.getSensors();
+                  console.log("SENSORS",sensors)
                   for (const key in sensors) {
                     if (sensors[key].n.toUpperCase() == "IGNITION") {
                       let ignVal = unit.calculateSensorValue(
-                        unit.getSensor(sensors[key].id),
+                        unit.getSensors(sensors[key]),
                         unit.getLastMessage()
                       );
                       if (ignVal != "-348201.3876") {
@@ -1286,66 +1286,83 @@ export default {
                       }
                     }
                   }
-                  if (unit.getPosition() != null) {
-                    let r = unit.getMessageParams();
-                    //LAST-ACTIVE-SET --------------------------starts
-                    let i, idl;
-                    let n = unit.getPosition();
-                    (idl =
-                      r && r.speed && "number" == typeof r.speed.ct
-                        ? (i = r.speed.ct)
-                        : n && 0 === n.s && (i = n.t)),
-                      _this.sess.getServerTime() - i;
-                    if(i){
-                      obj.lastActive = moment(moment(i*1000)).tz("Etc/GMT+8").format("DD MMM HH:mm")
-                    }
-                    //LAST-ACTIVE-SET --------------------------ends
-
-                    var ajx = {
-                      flags: " 0",
-                      city_radius: " 0",
-                      dist_from_unit: " 0",
-                      txt_dist: " ",
-                      house_detect_radius: "0",
-                      coords:
-                        '[{"lon":' +
-                        unit.getPosition().x +
-                        ',"lat":' +
-                        unit.getPosition().y +
-                        "}]",
-                      uid: _this.sess.getCurrUser()._id,
-                      sid: _this.sessionId
-                    };
-
-                    if(isFirstTime){
-                      console.log("FIRST")
-                      obj.locationAddress = $.ajax({
-                        type: "POST",
-                        url:
-                          "https://geocode-maps.wialon.com/hst-api.wialon.com/gis_geocode",
-                        contentType: "application/x-www-form-urlencoded",
-                        data: ajx,
-                        // processData: false,
-                        async: false
-                      })
-                        .responseText.replace("[", "")
-                        .replace("]", "")
-                        .replace('"', "")
-                        .replace("\\", "")
-                        .replace('"', "");
-                    }else{
-                      try{
-                        let un = _this.unitData.find(u=>u.id==unit.getId())
-                        // console.log("FOUND",un)
-                        obj.locationAddress = un.locationAddress
-                      }catch(locEx){
-                        obj.locationAddress = '-'
-                      }
-                    }
-
-                  } else {
+                  if(isFirstTime){
                     obj.locationAddress = "-";
+                    wialon.util.Gis.getLocations([{lat: unit.getPosition().y, lon: unit.getPosition().x}], (code, data)=>{
+                      if(code == 0){
+                        obj.locationAddress = data[0];
+                      }
+                    })
+                  }else{
+                    try{
+                      let un = _this.unitData.find(u=>u.id==unit.getId())
+                      // console.log("FOUND",un)
+                      obj.locationAddress = un.locationAddress
+                    }catch(locEx){
+                      obj.locationAddress = '-'
+                    }
                   }
+                  // if (unit.getPosition() != null) {
+                  //   let r = unit.getMessageParams();
+                  //   //LAST-ACTIVE-SET --------------------------starts
+                  //   let i, idl;
+                  //   let n = unit.getPosition();
+                  //   (idl =
+                  //     r && r.speed && "number" == typeof r.speed.ct
+                  //       ? (i = r.speed.ct)
+                  //       : n && 0 === n.s && (i = n.t)),
+                  //     _this.sess.getServerTime() - i;
+                  //   if(i){
+                  //     obj.lastActive = moment(moment(i*1000)).tz("Etc/GMT+8").format("DD MMM HH:mm")
+                  //   }
+                  //   //LAST-ACTIVE-SET --------------------------ends
+
+                  //   var ajx = {
+                  //     flags: " 0",
+                  //     city_radius: " 0",
+                  //     dist_from_unit: " 0",
+                  //     txt_dist: " ",
+                  //     house_detect_radius: "0",
+                  //     coords:
+                  //       '[{"lon":' +
+                  //       unit.getPosition().x +
+                  //       ',"lat":' +
+                  //       unit.getPosition().y +
+                  //       "}]",
+                  //     uid: _this.sess.getCurrUser()._id,
+                  //     sid: _this.sessionId
+                  //   };
+
+                  //   if(isFirstTime){
+                  //     console.log("FIRST")
+                  //     obj.locationAddress = $.ajax({
+                  //       type: "POST",
+                  //       url:
+                  //         "https://geocode-maps.wialon.com/hst-api.wialon.com/gis_geocode",
+                  //       contentType: "application/x-www-form-urlencoded",
+                  //       data: ajx,
+                  //       // processData: false,
+                  //       async: false
+                  //     })
+                  //       .responseText.replace("[", "")
+                  //       .replace("]", "")
+                  //       .replace('"', "")
+                  //       .replace("\\", "")
+                  //       .replace('"', "");
+                  //   }else{
+                  //     try{
+                  //       let un = _this.unitData.find(u=>u.id==unit.getId())
+                  //       // console.log("FOUND",un)
+                  //       obj.locationAddress = un.locationAddress
+                  //     }catch(locEx){
+                  //       obj.locationAddress = '-'
+                  //     }
+                  //   }
+
+                  // } else {
+                  //   obj.locationAddress = "-";
+                  // }
+                  
 
                   //COMMANDS
                   // let cmd = unit.getCommandDefinitions();
@@ -1390,7 +1407,7 @@ export default {
 
                   _this.units.push(obj);
                 } catch (exception) {
-                  console.log("EXCEPTION->", exception, unit, unit.getPosition());
+                  // console.log("EXCEPTION->", exception, unit, unit.getPosition());
                 }
               });
               _this.unitData = data;
@@ -1402,7 +1419,7 @@ export default {
                 }
               }
               try{
-                console.log("group-results",groupResults)
+                // console.log("group-results",groupResults)
                 //ALL-VEHICLE GROUP ID-20171323
                 _this.executeReport(_this.resource.getId(),rId,groupResults.length>0?groupResults[0].getId() || 20171323:20171323)
               }catch(gidex){
@@ -1429,8 +1446,8 @@ export default {
       // let from = new Date(ydm2 + " 22:00:00").getTime()/1000
       let from = new Date(ydm + " 00:00").getTime()/1000
       let to = new Date(ydm + " 23:59").getTime()/1000
-      console.log("YDM",ydm,sess.getServerTime(),from,to)
-      console.log(moment(from*1000).format("YYYY-MM-DD HH:mm:ss"),moment(to*1000).format("YYYY-MM-DD HH:mm:ss"))
+      // console.log("YDM",ydm,sess.getServerTime(),from,to)
+      // console.log(moment(from*1000).format("YYYY-MM-DD HH:mm:ss"),moment(to*1000).format("YYYY-MM-DD HH:mm:ss"))
       // specify time interval object
       let interval = { "from": from, "to": to, "flags": 16777216 };
       let template = res.getReport(tId); // get report template by id
@@ -1443,7 +1460,7 @@ export default {
             if(code){ console.log("ERROR>",wialon.core.Errors.getErrorText(code)); return; } // exit if error code
             if(!data.getTables().length){ return; }
             _this.showReportResult(tId,uid,data); // show report result
-            console.log("result",data)
+            // console.log("result",data)
         },);
       });
 
@@ -1454,14 +1471,14 @@ export default {
       var tables = result.getTables(); // get report tables
       if (!tables) return; // exit if no tables
       // console.log("results",result)
-      console.log("tables",tables)
+      // console.log("tables",tables)
       for(var i=0; i < tables.length; i++){ // cycle on tables
       if(tables[i].label != 'Engine hours') continue
       // console.log("table",tables[i])
       let config = {"type":"range","data":{"from":0,"to":tables[i].rows,"level":0}}
         await result.selectRows(i, config, // get Table rows
           qx.lang.Function.bind( async function(i, code, rows) { // getTableRows callback
-          console.log("all-rows",rows)
+          // console.log("all-rows",rows)
             if (code) {console.log("ERROR_____@",wialon.core.Errors.getErrorText(code)); return;} // exit if error code
             let rowIndex = -1
             for(var j in rows) { // cycle on table rows
@@ -1471,7 +1488,7 @@ export default {
               let bTime;
               let idle = '-'
               let tM = rows[j].c[8]
-              console.log("start-time",rows[j].c)
+              // console.log("start-time",rows[j].c)
               if('object'===typeof rows[j].c[2]){
                 bTime = rows[j].c[2].t
               }else if('string'===typeof rows[j].c[2] && rows[j].c[2] == '-----'){
@@ -1480,9 +1497,11 @@ export default {
                 bTime = rows[j].c[2]
               }
               let u = _this.units.find(x=>x.vehicleNo==vehicleNo)
-              u.startTime = bTime
-              u.todayMileage = tM
-              u.idlling = rows[j].c[7]
+              if(u){
+                u.startTime = bTime
+                u.todayMileage = tM
+                u.idlling = rows[j].c[7]
+              }
               // result.getRowDetail(1,rowIndex,(c,rd)=>{
               //   if(c) console.log("ERROR_____@",wialon.core.Errors.getErrorText(c));
               //   // console.log("rd",rd,rd[rd.length-1].c[1],rd.length,vehicleNo,)
@@ -1505,7 +1524,7 @@ export default {
       let sess = wialon.core.Session.getInstance()
       sess.getReportTables(
         function (code,data){
-          console.log("report-table",data)
+          // console.log("report-table",data)
         var col = [];
         for (var i = 0; i < data.length; i++) {
           if (data[i].n == templateId) {//draw only selected report table
@@ -1550,8 +1569,8 @@ export default {
         // let from = new Date(ydm2 + " 22:00:00").getTime()/1000
         let from = new Date(ydm + " 00:00").getTime()/1000
         let to = new Date(ydm + " 23:59").getTime()/1000
-        console.log("YDM",ydm,sess.getServerTime(),from,to)
-        console.log(moment(from*1000).format("YYYY-MM-DD HH:mm:ss"),moment(to*1000).format("YYYY-MM-DD HH:mm:ss"))
+        // console.log("YDM",ydm,sess.getServerTime(),from,to)
+        // console.log(moment(from*1000).format("YYYY-MM-DD HH:mm:ss"),moment(to*1000).format("YYYY-MM-DD HH:mm:ss"))
         // specify time interval object
         let interval = { "from": from, "to": to, "flags": wialon.item.MReport.intervalFlag.absolute };
         res.execReport(template, uId, 0, interval, // execute selected report
@@ -1561,11 +1580,11 @@ export default {
             console.log("ERROR->",wialon.core.Errors.getErrorText(code));
             return;
           } // exit if error code
-          console.log("attachments",data.getAttachments())
+          // console.log("attachments",data.getAttachments())
           let renJ = data.renderJSON(
             0, 1176, 0,0,0
           )
-          console.log("tables",renJ)
+          // console.log("tables",renJ)
           if (!data.getTables().length) { // exit if no tables obtained
             // msg("<b>There is no data generated</b>");
             return;
