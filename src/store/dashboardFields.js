@@ -30,6 +30,7 @@
         {selected: true, key: "startTime", label: "Start Time",  },
         {selected: false, key: "media", label: "Media",  },
         {selected: false, key: "video", label: "Video",  },
+        {selected: true,  key: "remarks", label: "Remarks" }
       ]
     },
     getters: {
