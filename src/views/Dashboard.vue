@@ -431,7 +431,8 @@ export default {
       },
 
       loadDataInterval: null,
-      remarks: []
+      remarks: [],
+      reloadTimeOut: null
 
     };
   },
@@ -490,6 +491,9 @@ export default {
     //         else msg("Logout successfully") // logout suceed
     //     }
     // )
+    EventBus.$on("remove-dashboard-reload",()=>{
+      clearTimeout(_this.reloadTimeOut)
+    })
   },
   computed: {
     ...mapGetters("loginInfo", ["isLogged", "token", "sessionId","isAdmin"]),
@@ -677,7 +681,8 @@ export default {
         zoomControl: true,
         mapTypeControlOptions: {
           mapTypeIds: ["roadmap", "satellite"]
-        }
+        },
+        streetViewControl: true
       });
       this.map.data.setStyle(this.styleFeature);
       this.map.data.loadGeoJson(
@@ -1458,9 +1463,6 @@ export default {
               _this.isTableBusy = false;
               _this.lastUpdated = new Date().getTime();
               _this.$forceUpdate();
-              setTimeout(() => {
-                _this.getUnits(false);
-              }, 1.5 * 60 * 1000);
               if(isFirstTime){
                 _this.units.forEach(unit => {
                   let rm = _this.remarks.find(r=>r.vehicleNo == unit.vehicleNo)
@@ -1514,8 +1516,10 @@ export default {
       if (!tables) return; // exit if no tables
       // console.log("results",result)
       // console.log("tables",tables)
+      let tableIndex = -1
       for(var i=0; i < tables.length; i++){ // cycle on tables
       if(tables[i].label != 'Engine hours') continue
+      tableIndex = i
       // console.log("table",tables[i])
       let config = {"type":"range","data":{"from":0,"to":tables[i].rows,"level":0}}
         await result.selectRows(i, config, // get Table rows
@@ -1524,115 +1528,43 @@ export default {
             if (code) {console.log("ERROR_____@",wialon.core.Errors.getErrorText(code)); return;} // exit if error code
             let rowIndex = -1
             for(var j in rows) { // cycle on table rows
-            rowIndex++
-              if (typeof rows[j].c == "undefined") continue; // skip empty rows
-              let vehicleNo = rows[j].c[1]
-              let bTime;
-              let idle = '-'
-              let tM = rows[j].c[8]
-              // console.log("start-time",rows[j].c)
-              if('object'===typeof rows[j].c[2]){
-                bTime = rows[j].c[2].t
-              }else if('string'===typeof rows[j].c[2] && rows[j].c[2] == '-----'){
-                bTime = '-'
-              }else{
-                bTime = rows[j].c[2]
-              }
-              let u = _this.units.find(x=>x.vehicleNo==vehicleNo)
-              if(u){
-                u.startTime = bTime
-                u.todayMileage = tM
-                u.idlling = rows[j].c[7]
-              }
-              // result.getRowDetail(1,rowIndex,(c,rd)=>{
-              //   if(c) console.log("ERROR_____@",wialon.core.Errors.getErrorText(c));
-              //   // console.log("rd",rd,rd[rd.length-1].c[1],rd.length,vehicleNo,)
-              //   let n = rd[rd.length-1].c[1].trim().toLowerCase()
-              //   _this.units.forEach(u=>{
-              //     // console.log(u.vehicleNo.trim().toLowerCase()==n,u.vehicleNo,n)
-              //   })
-              //   let u2 = _this.units.find(x=>x.vehicleNo.trim().toLowerCase()==n)
-              //   u2.idlling = rd[rd.length-1].c[7]
-              // })
+              rowIndex++
+              result.getRowDetail(tableIndex,rowIndex,(c,col)=>{
+                if(c) console.log("ERROR_____@",wialon.core.Errors.getErrorText(c));
+                // console.log("COLS",col);
+                else{
+                  let colIndex = col.length-1
+                  if (typeof col[colIndex].c != "undefined") {
+                    let vehicleNo = col[colIndex].c[1]
+                    let bTime;
+                    let idle = '-'
+                    let tM = col[colIndex].c[8]
+                    // console.log("start-time",col[colIndex].c)
+                    if('object'===typeof col[colIndex].c[2]){
+                      bTime = col[colIndex].c[2].t
+                    }else if('string'===typeof col[colIndex].c[2] && col[colIndex].c[2] == '-----'){
+                      bTime = '-'
+                    }else{
+                      bTime = col[colIndex].c[2]
+                    }
+                    let u = _this.units.find(x=>x.vehicleNo==vehicleNo)
+                    if(u){
+                      u.startTime = bTime
+                      u.todayMileage = parseFloat(tM.split("km")[0]) == 0 ? '-' : tM
+                      u.idlling = col[colIndex].c[7]
+                    }
+                  }
+                }
+                if(rowIndex == rows.length - 1 ){
+                  _this.reloadTimeOut = setTimeout(() => {
+                    _this.getUnits(false);
+                  }, 1.5 * 60 * 1000);
+                }
+              })
             }
           }, this, "")
         );
       }
-    },
-    async getTemplateObject(templateId,templText,uId,res){
-      let _this = this
-      // get available reports table
-      let c='',cl='';
-      let sess = wialon.core.Session.getInstance()
-      sess.getReportTables(
-        function (code,data){
-          // console.log("report-table",data)
-        var col = [];
-        for (var i = 0; i < data.length; i++) {
-          if (data[i].n == templateId) {//draw only selected report table
-            col = data[i].col;
-            for (var j = 0; j < col.length; j++){ // construct Select object using found report columns
-              if( col[j].l != '' && col[j].n != '' ){
-                c += (c==""?"":",") + col[j].n;
-		            cl += (cl==""?"":",") + col[j].l;
-              }
-            }
-          }
-        };
-        let template = {// fill template object
-          "id": 0,
-          "n": templateId,
-          "ct": "avl_unit",
-          "p": "",
-          "tbl": [{
-              "n": templateId,
-              "l": templText,
-              "c": c,
-              "cl": cl,
-              "s": "",
-              "sl": "",
-              "p": "",
-              "sch": {
-                "f1": 0,
-                "f2": 0,
-                "t1": 0,
-                "t2": 0,
-                "m": 0,
-                "y": 0,
-                "w": 0
-              },
-              "f": 0
-            }]
-        }
-        let ydm = moment().format("YYYY-MM-DD")
-        // let ydm2 = moment(moment().subtract(moment.duration(1,'days'))).format("YYYY-MM-DD")
-        // let to = parseInt(moment(moment( sess.getServerTime()*1000).format("YYYY-MM-DD")+" 23:59:59" ).format('X')); // get current server time (end time of report time interval)
-        // let from = parseInt(moment(moment( sess.getServerTime()*1000).format("YYYY-MM-DD")+" 00:00:00" ).format('X')); // calculate start time of report
-        // let from = new Date(ydm2 + " 22:00:00").getTime()/1000
-        let from = new Date(ydm + " 00:00").getTime()/1000
-        let to = new Date(ydm + " 23:59").getTime()/1000
-        // console.log("YDM",ydm,sess.getServerTime(),from,to)
-        // console.log(moment(from*1000).format("YYYY-MM-DD HH:mm:ss"),moment(to*1000).format("YYYY-MM-DD HH:mm:ss"))
-        // specify time interval object
-        let interval = { "from": from, "to": to, "flags": wialon.item.MReport.intervalFlag.absolute };
-        res.execReport(template, uId, 0, interval, // execute selected report
-
-        function(code, data) { // execReport template
-          if (code) {
-            console.log("ERROR->",wialon.core.Errors.getErrorText(code));
-            return;
-          } // exit if error code
-          // console.log("attachments",data.getAttachments())
-          let renJ = data.renderJSON(
-            0, 1176, 0,0,0
-          )
-          // console.log("tables",renJ)
-          if (!data.getTables().length) { // exit if no tables obtained
-            // msg("<b>There is no data generated</b>");
-            return;
-          } else _this.getFuelReportRows(data); // show report result
-        });
-      });
     },
     
   }
