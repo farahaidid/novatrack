@@ -90,7 +90,6 @@ export default {
             }
         },
         goReport(){
-            this.$router.push({name: "report"})
             EventBus.$emit("remove-dashboard-reload")
         },
         goDash(){

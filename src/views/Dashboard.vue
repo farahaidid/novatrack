@@ -36,7 +36,7 @@
                 </b-form-group>
               </b-col>
               <b-col md="9">
-                <button class="btn-secondary btn mt-3" @click="getUnits(true)">Refresh</button>
+                <button class="btn-secondary btn mt-3" @click="getUnits(false)">Refresh</button>
                 <b-dropdown text="Show/Hide Parameter" variant="secondary" class="m-2 mx-2 mt-4">
                   <div class="px-4">
                     <b-form-checkbox
@@ -101,10 +101,8 @@
             <span @click="showUnitOnMap(row.item.id)">{{row.item.locationAddress}}</span>
           </template>
           <template v-slot:cell(idlling)="row">
-            <!-- {{row.item.status}} -   {{row.item.idlling}} - {{row.item.movingState.is_ignition_on}} -->
-            <span
-              v-if="row.item.status == 1 && row.item.speed==0 && !row.item.movingState.is_stale"
-            >{{row.item.idlling}}</span>
+            <!-- {{row.item.status}} {{row.item.speed}} {{!row.item.movingState.is_stale}} -->
+            <span v-if="row.item.status == 1 && row.item.speed==0 && !row.item.movingState.is_stale">{{row.item.idlling}}</span>
             <span v-else>-</span>
           </template>
           <template v-slot:cell(driver)="row">
@@ -453,9 +451,11 @@ export default {
       wialon.core.Session.getInstance().__cT == null ||
       wialon.core.Session.getInstance().__cT.length == 0
     ) {
-      wialon.core.Session.getInstance().initSession(
-        "https://hst-api.wialon.com"
-      );
+      let k = "https://hst-api.wialon.com"
+      // if(_this.$route.query.sid){
+      //   k = _this.$route.query.sid
+      // }
+      wialon.core.Session.getInstance().initSession(k);
       wialon.core.Session.getInstance().loginToken(
         _this.token,
         "", // try to login
@@ -467,14 +467,14 @@ export default {
             return;
           }
           wialon.render.Renderer.prototype.setLocale(wialon.util.DateTime.getTimezoneOffset(),"en",{flags:0,formatDate:"%H"},function (e,d){
-            console.log(e);console.log(d)
+            // console.log(e);console.log(d)
             _this.getUnits(true);
           })
         }
       );
     }else{
       wialon.render.Renderer.prototype.setLocale(wialon.util.DateTime.getTimezoneOffset(),"en",{flags:0,formatDate:"%H"},function (e,d){
-            console.log(e);console.log(d)
+            // console.log(e);console.log(d)
             _this.getUnits(true);
           })
     }
@@ -492,7 +492,9 @@ export default {
     //     }
     // )
     EventBus.$on("remove-dashboard-reload",()=>{
+      window.stop()
       clearTimeout(_this.reloadTimeOut)
+      this.$router.push({name: "report"})
     })
   },
   computed: {
@@ -552,10 +554,10 @@ export default {
         },1000)
       }
       else if(cu.getName() == 'novatrack'){
-        console.log("YES")
+        // console.log("YES")
         this.SET_IS_ADMIN(true)
       }else{
-        console.log("NO")
+        // console.log("NO")
         this.SET_IS_ADMIN(false)
       }
     },
@@ -584,7 +586,7 @@ export default {
       if (unit.movingState.is_lbs) str = "icon-device-move-lbs";
       else if (unit.movingState.is_moving) str = "icon-device-move";
       else str = "icon-device-stop";
-      if (unit.status == 1 ) {
+      if (unit.status == 1 && unit.speed==0 && !unit.movingState.is_stale ) {
         str += "-sensor";
       }
 
@@ -807,16 +809,16 @@ export default {
     openCommandDialog(u) {
       // this.executeReport(this.resource.getId(),1,u.id)
       // this.executeReport(this.resource.getId(),3,u.id)
-      console.log(u);
+      // console.log(u);
       this.fetchingAvlCommands = true;
       let unit = this.sess.getItem(u.id);
-      console.log(
-        "FETCHED UNIT",
-        u.vehicleNo,
-        unit,
-        u.availableCommands,
-        unit.getCommands()
-      );
+      // console.log(
+      //   "FETCHED UNIT",
+      //   u.vehicleNo,
+      //   unit,
+      //   u.availableCommands,
+      //   unit.getCommands()
+      // );
 
       let cmd = unit.getCommandDefinitions();
       let canExecute = false,
@@ -854,16 +856,10 @@ export default {
       //   executableCmds,
       //   wialon.item.Unit.accessFlag.executeCommands
       // );
-      console.log("HI",cmmds ,
-      "executable", executableCmds,
-          cmmds.length ,
-          unit.getUserAccess() ,//19327369763 
-            wialon.item.Unit.accessFlag.executeCommands) //16777216
 
       if(executableCmds.length>0) executableCmds[executableCmds.length-1].selected=true
 
       u.availableCommands = executableCmds
-      console.log(executableCmds)
       
       this.selectedUnit = u
       this.$forceUpdate()
@@ -891,9 +887,7 @@ export default {
       this.fuelReportTableSettings.currentPage = 1;
     },
     test() {
-      console.log(this.units);
       let unit = this.units[0];
-      console.log(unit.getNetConn());
     },
     async getUnits(isFirstTime) {
       this.units = []
@@ -1049,7 +1043,7 @@ export default {
         0, // from
         0, // to
         function(error, result) {
-          console.log("SEARCH_ITEMS", error, result);
+          // console.log("SEARCH_ITEMS", error, result);
           groupResults = result.items;
           _this.sess.updateDataFlags(
             // load items to current session
@@ -1074,7 +1068,7 @@ export default {
               var resources = _this.sess.getItems("avl_resource");
               let allDrivers = {};
               let allTrailers = {};
-              console.log("RESOURCES",resources)
+              // console.log("RESOURCES",resources)
               resources.forEach(resource => {
                 for (let drv in resource.getDrivers()) {
                   let driver = resource.getDrivers()[drv];
@@ -1098,11 +1092,11 @@ export default {
                   else allDrivers[trailer.bu].push(t_obj);
                 }
                 if (resource.getName() == "z Start Time") {
-                  console.log(resource);
+                  // console.log(resource);
                   _this.resource = resource
                 }
                 if (resource.getName() == "Fuel Report") {
-                  console.log("FUEL-RESOURCE",resource);
+                  // console.log("FUEL-RESOURCE",resource);
                   _this.fuelRes = resource
                   _this.fuelReportObj = resource[0]
                 }
@@ -1182,8 +1176,11 @@ export default {
                     if (sensors[key].n.toUpperCase() == "IGNITION") {
                       let ignVal = unit.calculateSensorValue(
                         unit.getSensors(sensors[key]),
-                        unit.getLastMessage()
+                        unit.getLastMessage(),
+                        unit.getPrevMessage()
                       );
+                      console.log("IGNITION",ignVal);
+
                       if (ignVal != "-348201.3876") {
                         obj.status = ignVal;
                       } else {
@@ -1535,6 +1532,7 @@ export default {
                 else{
                   let colIndex = col.length-1
                   if (typeof col[colIndex].c != "undefined") {
+                    console.log("COL",col[colIndex].c);
                     let vehicleNo = col[colIndex].c[1]
                     let bTime;
                     let idle = '-'
@@ -1598,5 +1596,9 @@ export default {
 >>>.table .thead-light th{
   position: sticky !important;
   top: 0 !important;
+}
+>>>.dropdown-menu{
+  max-height: 350px;
+  overflow: scroll;
 }
 </style>

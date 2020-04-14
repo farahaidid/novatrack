@@ -45,6 +45,20 @@
             :series="fuelChartSeries"
           ></apexchart>
           <div id="chart"></div>
+
+          <b-row>
+            <b-col></b-col>
+            <b-col class="pt-md-3">
+              <download-excel
+                class="btn btn-sm btn-secondary mt-md-4"
+                :data="fuelReportSummaryData"
+                :fields="fuelSummaryReportFieldsForXcel"
+                :name="selectedUnitName"
+                :title="excelSummaryTitle"
+                worksheet="Refuel Report Summary"
+              >Save EXCEL</download-excel>
+            </b-col>
+          </b-row>
           <div id="summary">
             <b-card class="my-2">
               <h6 class="text-xs-left">Summary</h6>
@@ -154,6 +168,12 @@
                 <template v-slot:cell(accuracy)="row">
                   {{
                     calculateAccuracy(row.item)
+                  }}
+                </template>
+
+                <template v-slot:cell(fuelTankAccuracy)="row">
+                  {{
+                    calcFuelTankAccuracy(row.item)
                   }}
                 </template>
 
@@ -389,6 +409,27 @@ export default {
           tdClass: "text-left"
         },
         {
+          key: "idlling",
+          label: "Idlling",
+          sortable: true,
+          thClass: "text-left",
+          tdClass: "text-left"
+        },
+        {
+          key: "consumedInIdlling",
+          label: "Consumed In Idle",
+          sortable: true,
+          thClass: "text-left",
+          tdClass: "text-left"
+        },
+        {
+          key: "avgConsumptionInIdle",
+          label: "Avg Consumption In Idle",
+          sortable: true,
+          thClass: "text-left",
+          tdClass: "text-left"
+        },
+        {
           key: "avgSpeed",
           label: "Avg Speed",
           sortable: true,
@@ -483,6 +524,13 @@ export default {
           tdClass: "text-left"
         },
         {
+          key: "accuracy",
+          label: "Accuracy %",
+          sortable: true,
+          thClass: "text-left",
+          tdClass: "text-left"
+        },
+        {
           key: "fuelPrice",
           label: "Fuel Price",
           sortable: false,
@@ -509,8 +557,29 @@ export default {
         "Bill (RM)": "billRM",
         "Different Lt.": "diffL",
         Accuracy: "accuracy",
+        "Fuel Tank Accuracy": "fuelTankAccuracy",
         "Fuel Price": "fuelPrice",
         "Fuel": "fuelType",
+      },
+      fuelSummaryReportFieldsForXcel: {
+        'Date' : {
+          field: 'grouping',
+          callback: (value) => {
+            return this.dateRange
+          }
+        },
+        'Mileage': 'mileage',
+        Consumed: 'consumed',
+        'Avg. Consumption': 'avgConsumption',
+        'KM/L': 'kmL',
+        Filled: 'filled',
+        'Engine Hours': 'engineHours',
+        Idlling: 'idlling',
+        'Consumed In Idlling': 'consumedInIdlling',
+        'Avg Consumption In Idle': 'avgConsumptionInIdle',
+        'Move Time': 'moveTime',
+        'Avg Speed': 'avgSpeed',
+        'Max Speed': 'maxSpeed'
       },
       fuelDefaultReports: [],
       reportSummary: null,
@@ -682,8 +751,23 @@ export default {
       if(isNaN(d)) return '-'
       return d
     },
+    calcFuelTankAccuracy(item){
+      let unit = wialon.core.Session.getInstance().getItem(this.selectedUnit.getId())
+      let fields = unit.getAdminFields()
+      let fuelTankVal = null
+      for(let key in fields){
+        if(fields[key].n == "Full Tank Volume (L)"){
+          fuelTankVal = parseFloat(fields[key].v)
+          break;
+        }
+      }
+      let d = (100 - ((this.calculateDiffL/fuelTankVal)*100)).toFixed(2)
+      if(isNaN(d)) return '-'
+      return d
+    },
     calculateAccuracy(item){
-      let d = ((parseFloat(item.filled.split('lt')[0])/parseFloat(item.bill.split('lt')[0]))*100).toFixed(2)
+      let d = '-'
+      d = ((parseFloat(item.filled.split('lt')[0])/parseFloat(item.bill.split('lt')[0]))*100).toFixed(2)
       if(isNaN(d)) return '-'
       return d
     },
@@ -862,10 +946,10 @@ export default {
           var resources = _this.sess.getItems("avl_resource");
           let allDrivers = {};
           let allTrailers = {};
-          console.log("RESOURCES", resources);
+          // console.log("RESOURCES", resources);
           resources.forEach(resource => {
             if (resource.getName() == "Fuel Report") {
-              console.log("FUEL-RESOURCE", resource);
+              // console.log("FUEL-RESOURCE", resource);
               _this.fuelRes = resource;
               _this.fuelReportObj = resource[0];
             }
@@ -877,7 +961,12 @@ export default {
             return 0
           })
           _this.loading = false;
-          console.log(_this.loading)
+          // console.log(_this.units)
+          // _this.units.forEach(unit=>{
+          //   if(unit.getName() == 'ABP7938'){
+          //     console.log("VEHICLE------>", unit.getAdminFields());
+          //   }
+          // })
           _this.$forceUpdate();
         }
       );
@@ -935,9 +1024,10 @@ export default {
             var tables = data.getTables(); // get report tables
             if (!tables) return; // exit if no tables
             // console.log("datas",data)
-            console.log("tables", tables);
+            console.log("tables", data.getStatistics());
             for (var i = 0; i < tables.length; i++) {
               if(tables[i].name == "unit_generic" && tables[i].label == "Summary") {
+                let stat = data.getStatistics()
                 _this.reportSummary = {
                   grouping: tables[i].total[1],
                   mileage: tables[i].total[2],
@@ -946,6 +1036,9 @@ export default {
                   kmL: tables[i].total[5],
                   filled: tables[i].total[6],
                   engineHours: tables[i].total[7],
+                  idlling: stat[7][1],
+                  consumedInIdlling: stat[8][1],
+                  avgConsumptionInIdle: stat[9][1],
                   moveTime: tables[i].total[8],
                   avgSpeed: tables[i].total[9],
                   maxSpeed: tables[i].total[10]
@@ -980,6 +1073,7 @@ export default {
                       // cycle on table rows
                       rowIndex++;
                       if (typeof rows[j].c == "undefined") continue; // skip empty rows
+                      console.log(rows[j]);
                       let obj = {
                         sl: rowIndex + 1,
                         time:
@@ -1023,6 +1117,7 @@ export default {
                           break
                         }
                       }
+                      obj.fuelTankAccuracy = _this.calcFuelTankAccuracy(obj)
                       _this.calculateBillRM(obj)
                       _this.fuelDefaultReports.push(Object.assign({},obj))
                       rDs.push(obj);
@@ -1138,6 +1233,9 @@ export default {
         'vehicle plate number: '+ name,
         'Report from: ' + from + ' to: ' + to
       ]
+    },
+    excelSummaryTitle(){
+      return 'Summary '+ this.excelTitle
     },
   },
 };
