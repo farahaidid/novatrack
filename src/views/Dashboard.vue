@@ -440,62 +440,67 @@ export default {
     this.setTableHeaders()
   },
   mounted() {
-    // this.isTableBusy = false
-    let _this = this;
-    this.initMap();
-    this.closeMapModal();
-    if (this.token.length == 0 && this.$route.query.access_token) {
-      this.SET_TOKEN(this.$route.query.access_token);
-    }
-    if (
-      wialon.core.Session.getInstance().__cT == null ||
-      wialon.core.Session.getInstance().__cT.length == 0
-    ) {
-      let k = "https://hst-api.wialon.com"
-      // if(_this.$route.query.sid){
-      //   k = _this.$route.query.sid
-      // }
-      wialon.core.Session.getInstance().initSession(k);
-      wialon.core.Session.getInstance().loginToken(
-        _this.token,
-        "", // try to login
-        function(code) {
-          if (code) {
-            EventBus.$emit("LOG_OUT");
-            // _this.logout()
-            // alert(wialon.core.Errors.getErrorText(code))
-            return;
+    try{
+      // this.isTableBusy = false
+      let _this = this;
+      this.initMap();
+      this.closeMapModal();
+      if(!this.token) EventBus.$emit("LOG_OUT");
+      if (this.token.length == 0 && this.$route.query.access_token) {
+        this.SET_TOKEN(this.$route.query.access_token);
+      }
+      if (
+        wialon.core.Session.getInstance().__cT == null ||
+        wialon.core.Session.getInstance().__cT.length == 0
+      ) {
+        let k = "https://hst-api.wialon.com"
+        // if(_this.$route.query.sid){
+        //   k = _this.$route.query.sid
+        // }
+        wialon.core.Session.getInstance().initSession(k);
+        wialon.core.Session.getInstance().loginToken(
+          _this.token,
+          "", // try to login
+          function(code) {
+            if (code) {
+              EventBus.$emit("LOG_OUT");
+              // _this.logout()
+              // alert(wialon.core.Errors.getErrorText(code))
+              return;
+            }
+            wialon.render.Renderer.prototype.setLocale(wialon.util.DateTime.getTimezoneOffset(),"en",{flags:0,formatDate:"%H"},function (e,d){
+              // console.log(e);console.log(d)
+              _this.getUnits(true);
+            })
           }
-          wialon.render.Renderer.prototype.setLocale(wialon.util.DateTime.getTimezoneOffset(),"en",{flags:0,formatDate:"%H"},function (e,d){
-            // console.log(e);console.log(d)
-            _this.getUnits(true);
-          })
-        }
-      );
-    }else{
-      wialon.render.Renderer.prototype.setLocale(wialon.util.DateTime.getTimezoneOffset(),"en",{flags:0,formatDate:"%H"},function (e,d){
-            // console.log(e);console.log(d)
-            _this.getUnits(true);
-          })
+        );
+      }else{
+        wialon.render.Renderer.prototype.setLocale(wialon.util.DateTime.getTimezoneOffset(),"en",{flags:0,formatDate:"%H"},function (e,d){
+              // console.log(e);console.log(d)
+              _this.getUnits(true);
+            })
+      }
+      if (this.sessionId.length == 0) {
+        this.SET_SESSION_ID(wialon.core.Session.getInstance().__cT);
+      }
+      this.checkUser()
+      // console.log("dash", this.token, "session", this.sessionId)
+      // var user = wialon.core.Session.getInstance().getCurrUser()
+      // console.log(user)
+      // wialon.core.Session.getInstance().logout( // if user exist - logout
+      //     function (code) { // logout callback
+      //         if (code) msg(wialon.core.Errors.getErrorText(code)) // logout failed, print error
+      //         else msg("Logout successfully") // logout suceed
+      //     }
+      // )
+      EventBus.$on("remove-dashboard-reload",()=>{
+        window.stop()
+        clearTimeout(_this.reloadTimeOut)
+        this.$router.push({name: "report"})
+      })
+    }catch(e){
+      console.log(e);
     }
-    if (this.sessionId.length == 0) {
-      this.SET_SESSION_ID(wialon.core.Session.getInstance().__cT);
-    }
-    this.checkUser()
-    // console.log("dash", this.token, "session", this.sessionId)
-    // var user = wialon.core.Session.getInstance().getCurrUser()
-    // console.log(user)
-    // wialon.core.Session.getInstance().logout( // if user exist - logout
-    //     function (code) { // logout callback
-    //         if (code) msg(wialon.core.Errors.getErrorText(code)) // logout failed, print error
-    //         else msg("Logout successfully") // logout suceed
-    //     }
-    // )
-    EventBus.$on("remove-dashboard-reload",()=>{
-      window.stop()
-      clearTimeout(_this.reloadTimeOut)
-      this.$router.push({name: "report"})
-    })
   },
   computed: {
     ...mapGetters("loginInfo", ["isLogged", "token", "sessionId","isAdmin"]),

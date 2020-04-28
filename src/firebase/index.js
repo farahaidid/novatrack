@@ -2,13 +2,14 @@ import firebase from 'firebase';
 // import firestore from 'firebase/firestore';
 import "firebase/auth"
 const config = {
-  apiKey: "AIzaSyA8tT40XFg-4pA__lNiV_eGJQQcr1rNPEs",
-  authDomain: "test-b21ad.firebaseapp.com",
-  databaseURL: "https://test-b21ad.firebaseio.com",
-  projectId: "test-b21ad",
-  storageBucket: "test-b21ad.appspot.com",
-  messagingSenderId: "150436590831",
-  appId: "1:150436590831:web:e7c4ba22042d337ffcd71a"
+  apiKey: "AIzaSyAKOSyPSvAXfF1ZhsDaRIhAXCnH5DfNujk",
+  authDomain: "nova-track-b20e2.firebaseapp.com",
+  databaseURL: "https://nova-track-b20e2.firebaseio.com",
+  projectId: "nova-track-b20e2",
+  storageBucket: "nova-track-b20e2.appspot.com",
+  messagingSenderId: "462658409224",
+  appId: "1:462658409224:web:9030311867f036635c92bd",
+  measurementId: "G-T9NJZPKPXJ"
 };
 
 const firebaseApp = firebase.initializeApp(config)
